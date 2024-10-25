@@ -11,11 +11,12 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.printToLog
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.guicarneirodev.wayairlines.data.model.Flight
+import com.guicarneirodev.wayairlines.domain.model.Flight
 import com.guicarneirodev.wayairlines.ui.navigation.NavGraph
-import com.guicarneirodev.wayairlines.viewmodel.FlightsViewModel
+import com.guicarneirodev.wayairlines.presentation.viewmodel.FlightsViewModel
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Before
 import org.junit.Rule
@@ -35,6 +36,19 @@ class FlightsScreenTest : KoinTest {
 
     private val mockViewModel = mockk<FlightsViewModel>(relaxed = true)
 
+    private val testFlight = Flight(
+        flight_id = "123",
+        airplane_name = "Boeing 737",
+        departure_airport = "GRU",
+        arrival_airport = "CGH",
+        departure_time = "10:00",
+        arrival_time = "11:00",
+        start_date = "2024-03-15",
+        end_date = "2024-03-15",
+        status = "Agendado",
+        completion_status = "No Horário"
+    )
+
     @Before
     fun setup() {
         stopKoin()
@@ -44,25 +58,18 @@ class FlightsScreenTest : KoinTest {
             })
         }
 
-        val flightsStateFlow = MutableStateFlow(listOf(
-            Flight(
-                flight_id = "123",
-                airplane_name = "Boeing 737",
-                departure_airport = "GRU",
-                arrival_airport = "CGH",
-                departure_time = "10:00",
-                arrival_time = "11:00",
-                start_date = "2024-03-15",
-                end_date = "2024-03-15",
-                status = "Agendado",
-                completion_status = "No Horário"
+        val uiState = MutableStateFlow(
+            FlightsViewModel.FlightsUiState(
+                allFlights = listOf(testFlight),
+                isLoading = false,
+                error = null
             )
-        ))
-        every { mockViewModel.flights } returns flightsStateFlow
+        )
+
+        every { mockViewModel.uiState } returns uiState
         every { mockViewModel.completedFlights } returns MutableStateFlow(emptyList())
         every { mockViewModel.cancelledFlights } returns MutableStateFlow(emptyList())
         every { mockViewModel.futureFlights } returns MutableStateFlow(emptyList())
-        every { mockViewModel.isLoading } returns MutableStateFlow(false)
 
         composeTestRule.setContent {
             val navController = rememberNavController()
@@ -80,6 +87,7 @@ class FlightsScreenTest : KoinTest {
         composeTestRule.onRoot().printToLog("FLIGHTS_SCREEN_CONTENT")
 
         composeTestRule.onNodeWithText("Histórico de Voos").assertIsDisplayed()
+
         composeTestRule.onNodeWithText("Todos").assertIsDisplayed()
         composeTestRule.onNodeWithText("Concluídos").assertIsDisplayed()
         composeTestRule.onNodeWithText("Cancelados").assertIsDisplayed()
@@ -93,33 +101,26 @@ class FlightsScreenTest : KoinTest {
 
         composeTestRule.onNodeWithText("Horário de saída:").assertIsDisplayed()
         composeTestRule.onNodeWithText("10:00").assertIsDisplayed()
-
         composeTestRule.onNodeWithText("Horário de chegada:").assertIsDisplayed()
         composeTestRule.onNodeWithText("11:00").assertIsDisplayed()
-
         composeTestRule.onNodeWithText("Data de saída:").assertIsDisplayed()
-
-        composeTestRule.onRoot().printToLog("ALL_NODES")
-
         composeTestRule.onNodeWithText("Data de chegada:").assertIsDisplayed()
-
         composeTestRule.onNodeWithText("Agendado").assertIsDisplayed()
     }
 
     @Test
     fun testLoadingState() {
-        val loadingStateFlow = MutableStateFlow(false)
-        every { mockViewModel.isLoading } returns loadingStateFlow
-
-        loadingStateFlow.value = true
+        val uiState = MutableStateFlow(FlightsViewModel.FlightsUiState(isLoading = true))
+        every { mockViewModel.uiState } returns uiState
 
         composeTestRule.mainClock.autoAdvance = false
         composeTestRule.mainClock.advanceTimeBy(1000)
         composeTestRule.waitForIdle()
 
-        composeTestRule.onRoot().printToLog("LOADING_STATE_TREE")
-
-        loadingStateFlow.value = false
+        uiState.value = FlightsViewModel.FlightsUiState(
+            allFlights = listOf(testFlight),
+            isLoading = false
+        )
         composeTestRule.mainClock.advanceTimeBy(1000)
         composeTestRule.waitForIdle()
 
@@ -130,11 +131,14 @@ class FlightsScreenTest : KoinTest {
     fun testTabSelection() {
         composeTestRule.onNodeWithText("Concluídos").performClick()
         composeTestRule.waitForIdle()
+        verify { mockViewModel.completedFlights }
 
         composeTestRule.onNodeWithText("Cancelados").performClick()
         composeTestRule.waitForIdle()
+        verify { mockViewModel.cancelledFlights }
 
         composeTestRule.onNodeWithText("Futuros").performClick()
         composeTestRule.waitForIdle()
+        verify { mockViewModel.futureFlights }
     }
 }

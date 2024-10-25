@@ -4,7 +4,7 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2024-10-08T18:23:24.455566500Z">
+        <DropdownSelection timestamp="2024-10-23T17:37:38.380990900Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\henry\.android\avd\Copy_of_Pixel_8_API_34.avd" />
@@ -16,10 +16,10 @@
       <SelectionState runConfigName="FlightsScreenTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="testLoadingState()">
+      <SelectionState runConfigName="testFlightsScreenContent()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="testFlightsScreenContent()">
+      <SelectionState runConfigName="testErrorState()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>

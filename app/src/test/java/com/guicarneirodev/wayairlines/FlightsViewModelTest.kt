@@ -1,42 +1,53 @@
 package com.guicarneirodev.wayairlines
 
 import app.cash.turbine.test
-import com.google.common.truth.Truth.assertThat
-import com.guicarneirodev.wayairlines.data.model.Flight
+import com.guicarneirodev.wayairlines.domain.model.Flight
 import com.guicarneirodev.wayairlines.data.repository.FlightRepository
-import com.guicarneirodev.wayairlines.viewmodel.FlightsViewModel
+import com.guicarneirodev.wayairlines.domain.model.ResponseData
+import com.guicarneirodev.wayairlines.presentation.model.FlightType
+import com.guicarneirodev.wayairlines.presentation.viewmodel.FlightsViewModel
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.job
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FlightsViewModelTest {
-
     private lateinit var viewModel: FlightsViewModel
     private lateinit var repository: FlightRepository
-
     private val testDispatcher = StandardTestDispatcher()
+
+    private val testFlight = Flight(
+        flight_id = "TEST123",
+        status = "CONCLUIDO",
+        completion_status = "NO_HORARIO",
+        start_date = "2024-08-01",
+        end_date = "2024-08-01",
+        departure_time = "10:00",
+        arrival_time = "11:00",
+        departure_airport = "TST",
+        arrival_airport = "TST2",
+        airplane_name = "Test Plane"
+    )
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        repository = mockk()
-
-        coEvery { repository.getFlights() } returns flowOf(emptyList())
-        coEvery { repository.getCompletedFlights() } returns flowOf(emptyList())
-        coEvery { repository.getCancelledFlights() } returns flowOf(emptyList())
-        coEvery { repository.getFutureFlights() } returns flowOf(emptyList())
-
-        viewModel = FlightsViewModel(repository)
+        repository = mockk(relaxed = true)
     }
 
     @After
@@ -45,65 +56,71 @@ class FlightsViewModelTest {
     }
 
     @Test
-    fun `loadFlights should update flights and isLoading states`() = runTest {
-        val testFlights = listOf(
-            Flight("AB123", "CONCLUIDO", "ATRASOU", "2024-08-01", "2024-08-01", "10:00", "14:00", "JFK", "LAX", "Boeing 737"),
-            Flight("CD456", "CONCLUIDO", "NO_HORARIO", "2024-08-03", "2024-08-03", "15:30", "19:45", "ORD", "MIA", "Airbus A320")
+    fun `completedFlights should emit correct data`() = runTest {
+        // Given
+        val completedFlight = testFlight.copy(status = "CONCLUIDO")
+
+        coEvery { repository.getCompletedFlights() } returns flowOf(
+            ResponseData.Success(listOf(completedFlight))
         )
 
-        coEvery { repository.getFlights() } returns flowOf(testFlights)
-
+        // When
         viewModel = FlightsViewModel(repository)
 
-        viewModel.loadFlights().join()
-
-        assertThat(viewModel.isLoading.value).isFalse()
-
-        assertThat(viewModel.flights.value).isEqualTo(testFlights)
-    }
-
-    @Test
-    fun `completedFlights should return only completed flights`() = runTest {
-        val completedFlights = listOf(
-            Flight("AB123", "CONCLUIDO", "ATRASOU", "2024-08-01", "2024-08-01", "10:00", "14:00", "JFK", "LAX", "Boeing 737"),
-            Flight("CD456", "CONCLUIDO", "NO_HORARIO", "2024-08-03", "2024-08-03", "15:30", "19:45", "ORD", "MIA", "Airbus A320")
-        )
-
-        coEvery { repository.getCompletedFlights() } returns flowOf(completedFlights)
-
-        viewModel = FlightsViewModel(repository)
-
+        // Then
         viewModel.completedFlights.test {
-            assertThat(awaitItem()).isEmpty()
-            assertThat(awaitItem()).isEqualTo(completedFlights)
+            assertEquals(emptyList<Flight>(), awaitItem()) // Estado inicial vazio
+            testScheduler.advanceUntilIdle()
+            assertEquals(listOf(completedFlight), awaitItem()) // Estado após carregamento
             cancelAndIgnoreRemainingEvents()
         }
+
+        coVerify(exactly = 1) { repository.getCompletedFlights() }
     }
 
     @Test
-    fun `cancelledFlights should return only cancelled flights`() = runTest {
-        val cancelledFlights = listOf(
-            Flight("EF789", "CANCELADO", "CANCELADO", "2024-08-05", "2024-08-05", "08:00", "11:30", "SFO", "SEA", "Boeing 747")
+    fun `cancelledFlights should emit correct data`() = runTest {
+        // Given
+        val cancelledFlight = testFlight.copy(status = "CANCELADO")
+
+        coEvery { repository.getCancelledFlights() } returns flowOf(
+            ResponseData.Success(listOf(cancelledFlight))
         )
 
-        coEvery { repository.getCancelledFlights() } returns flowOf(cancelledFlights)
-
+        // When
         viewModel = FlightsViewModel(repository)
 
+        // Then
         viewModel.cancelledFlights.test {
-            assertThat(awaitItem()).isEmpty()
-            assertThat(awaitItem()).isEqualTo(cancelledFlights)
+            assertEquals(emptyList<Flight>(), awaitItem()) // Estado inicial vazio
+            testScheduler.advanceUntilIdle()
+            assertEquals(listOf(cancelledFlight), awaitItem()) // Estado após carregamento
             cancelAndIgnoreRemainingEvents()
         }
+
+        coVerify(exactly = 1) { repository.getCancelledFlights() }
     }
 
     @Test
-    fun `futureFlights should return an empty list`() = runTest {
-        coEvery { repository.getFutureFlights() } returns flowOf(emptyList())
+    fun `futureFlights should emit correct data`() = runTest {
+        // Given
+        val futureFlight = testFlight.copy(status = "AGENDADO")
 
+        coEvery { repository.getFutureFlights() } returns flowOf(
+            ResponseData.Success(listOf(futureFlight))
+        )
+
+        // When
+        viewModel = FlightsViewModel(repository)
+
+        // Then
         viewModel.futureFlights.test {
-            assertThat(awaitItem()).isEmpty()
+            assertEquals(emptyList<Flight>(), awaitItem()) // Estado inicial vazio
+            testScheduler.advanceUntilIdle()
+            assertEquals(listOf(futureFlight), awaitItem()) // Estado após carregamento
             cancelAndIgnoreRemainingEvents()
         }
+
+        coVerify(exactly = 1) { repository.getFutureFlights() }
     }
 }

@@ -27,6 +27,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.guicarneirodev.wayairlines.R
+import com.guicarneirodev.wayairlines.ui.theme.GradientBottomColor
+import com.guicarneirodev.wayairlines.ui.theme.GradientTopColor
+import com.guicarneirodev.wayairlines.ui.theme.PrimaryBlue
+import com.guicarneirodev.wayairlines.ui.theme.White
 
 @Composable
 fun HomeScreen(navController: NavController) {
@@ -35,7 +39,7 @@ fun HomeScreen(navController: NavController) {
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF0D599C), Color(0xFF09476F))
+                    colors = listOf(GradientTopColor, GradientBottomColor)
                 )
             )
     ) {
@@ -65,7 +69,7 @@ fun HomeScreen(navController: NavController) {
 fun WelcomeText() {
     Text(
         text = "Bem-vindo ao\n Way Airlines\nFlight History",
-        color = Color.White,
+        color = White,
         fontSize = 36.sp,
         fontWeight = FontWeight.Bold,
         lineHeight = 44.sp,
@@ -73,7 +77,7 @@ fun WelcomeText() {
     )
     Text(
         text = "Seu histórico de voos em um só lugar",
-        color = Color.White,
+        color = White,
         fontSize = 18.sp,
         fontWeight = FontWeight.ExtraBold
     )
@@ -92,7 +96,7 @@ fun ViewFlightsButton(navController: NavController) {
     ) {
         Text(
             text = "Ver Histórico de Voos",
-            color = Color(0xFF2B6EA8),
+            color = PrimaryBlue,
             fontSize = 18.sp,
             fontWeight = FontWeight.ExtraBold
         )

@@ -10,11 +10,14 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.guicarneirodev.wayairlines.viewmodel.FlightsViewModel
+import com.guicarneirodev.wayairlines.domain.model.Flight
+import com.guicarneirodev.wayairlines.ui.theme.PrimaryBlue
+import com.guicarneirodev.wayairlines.ui.theme.White
+import com.guicarneirodev.wayairlines.presentation.viewmodel.FlightsViewModel
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -24,8 +27,7 @@ fun FlightsScreen(viewModel: FlightsViewModel = koinViewModel()) {
 
 @Composable
 fun FlightsScreenContent(viewModel: FlightsViewModel) {
-    val flights by viewModel.flights.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
     val completedFlights by viewModel.completedFlights.collectAsState()
     val cancelledFlights by viewModel.cancelledFlights.collectAsState()
     val futureFlights by viewModel.futureFlights.collectAsState()
@@ -34,11 +36,11 @@ fun FlightsScreenContent(viewModel: FlightsViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0D599C))
+            .background(PrimaryBlue)
     ) {
         Text(
             text = "Histórico de Voos",
-            color = Color.White,
+            color = White,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(16.dp)
@@ -47,14 +49,14 @@ fun FlightsScreenContent(viewModel: FlightsViewModel) {
         ScrollableTabRow(
             selectedTabIndex = selectedTab,
             edgePadding = 16.dp,
-            containerColor = Color(0xFF0D599C),
-            contentColor = Color.White,
+            containerColor = PrimaryBlue,
+            contentColor = White,
             indicator = { tabPositions ->
                 if (selectedTab < tabPositions.size) {
                     SecondaryIndicator(
                         Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
                         height = 3.dp,
-                        color = Color.White
+                        color = White
                     )
                 }
             }
@@ -67,31 +69,80 @@ fun FlightsScreenContent(viewModel: FlightsViewModel) {
                 )
             }
         }
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Color.White)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                val displayedFlights = when (selectedTab) {
-                    1 -> completedFlights
-                    2 -> cancelledFlights
-                    3 -> futureFlights
-                    else -> flights
-                }
-                items(displayedFlights) { flight ->
-                    FlightItems(flight)
-                    Spacer(modifier = Modifier.height(8.dp))
+
+        when {
+            uiState.isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = White)
                 }
             }
+            uiState.error != null -> {
+                ErrorMessage(uiState.error!!) {
+                    viewModel.loadFlights()
+                }
+            }
+            else -> {
+                FlightsList(
+                    allFlights = uiState.allFlights,
+                    completedFlights = completedFlights,
+                    cancelledFlights = cancelledFlights,
+                    futureFlights = futureFlights,
+                    selectedTab = selectedTab
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ErrorMessage(error: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = error,
+            color = White,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = onRetry,
+            colors = ButtonDefaults.buttonColors(containerColor = White)
+        ) {
+            Text("Tentar Novamente", color = PrimaryBlue)
+        }
+    }
+}
+
+@Composable
+fun FlightsList(
+    allFlights: List<Flight>,
+    completedFlights: List<Flight>,
+    cancelledFlights: List<Flight>,
+    futureFlights: List<Flight>,
+    selectedTab: Int
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        val displayedFlights = when (selectedTab) {
+            1 -> completedFlights
+            2 -> cancelledFlights
+            3 -> futureFlights
+            else -> allFlights
+        }
+        items(displayedFlights) { flight ->
+            FlightItems(flight)
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

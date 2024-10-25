@@ -1,4 +1,4 @@
-package com.guicarneirodev.wayairlines.data.model
+package com.guicarneirodev.wayairlines.domain.model
 
 data class Flight(
     val flight_id: String,
